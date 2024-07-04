@@ -4,8 +4,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Todo.Database;
 using Todo.Models;
 
 namespace Todo.Controllers
@@ -15,24 +17,31 @@ namespace Todo.Controllers
     public class TodoItemsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserManager<User> _userManager;
 
-        public TodoItemsController(ApplicationDbContext context)
+        public TodoItemsController(ApplicationDbContext context, UserManager<User> userManager)
         {
             _context = context;
+            _userManager = userManager;
         }
 
         // GET: api/TodoItems
         [HttpGet]
         public async Task<ActionResult<IEnumerable<TodoItem>>> GetTodoItems()
         {
-            return await _context.TodoItems.ToListAsync();
+            var userId = _userManager.GetUserId(User);
+            return await _context.TodoItems
+                .Where(t => t.UserId == userId)
+                .Include(t => t.User)
+                .ToListAsync();
         }
 
         // GET: api/TodoItems/5
         [HttpGet("{id}")]
         public async Task<ActionResult<TodoItem>> GetTodoItem(long id)
         {
-            var todoItem = await _context.TodoItems.FindAsync(id);
+            var userId = _userManager.GetUserId(User);
+            var todoItem = await _context.TodoItems.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
             if (todoItem == null)
             {
@@ -47,10 +56,14 @@ namespace Todo.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTodoItem(long id, TodoItem todoItem)
         {
-            if (id != todoItem.Id)
+            var userId = _userManager.GetUserId(User);
+
+            if (id != todoItem.Id || todoItem.UserId != userId)
             {
                 return BadRequest();
             }
+
+            todoItem.UserId = userId;
 
             _context.Entry(todoItem).State = EntityState.Modified;
 
@@ -60,7 +73,7 @@ namespace Todo.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!TodoItemExists(id))
+                if (!TodoItemExists(id, userId))
                 {
                     return NotFound();
                 }
@@ -78,6 +91,11 @@ namespace Todo.Controllers
         [HttpPost]
         public async Task<ActionResult<TodoItem>> PostTodoItem(TodoItem todoItem)
         {
+            var userId = _userManager.GetUserId(User);
+
+            todoItem.UserId = userId;
+            todoItem.User = await _context.Users.FindAsync(userId);
+
             _context.TodoItems.Add(todoItem);
             await _context.SaveChangesAsync();
 
@@ -88,7 +106,9 @@ namespace Todo.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTodoItem(long id)
         {
-            var todoItem = await _context.TodoItems.FindAsync(id);
+            var userId = _userManager.GetUserId(User);
+
+            var todoItem = await _context.TodoItems.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
             if (todoItem == null)
             {
                 return NotFound();
@@ -100,9 +120,9 @@ namespace Todo.Controllers
             return NoContent();
         }
 
-        private bool TodoItemExists(long id)
+        private bool TodoItemExists(long id, string userId)
         {
-            return _context.TodoItems.Any(e => e.Id == id);
+            return _context.TodoItems.Any(e => e.Id == id && e.UserId == userId);
         }
     }
 }
