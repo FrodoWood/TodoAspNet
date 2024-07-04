@@ -1,5 +1,9 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using System.Security.Cryptography.X509Certificates;
 using Todo.Models;
 
 var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
@@ -15,9 +19,9 @@ builder.Services.AddCors(options =>
             var allowedOrigins = builder.Configuration.GetValue<string>("AllowedOrigins")?.Split(';') ?? new string[] { };
 
             policy.WithOrigins(allowedOrigins)
+            .AllowCredentials()
             .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowAnyMethod();
         });
 });
 
@@ -36,7 +40,10 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.LoginPath = "/api/account/login";
     options.AccessDeniedPath = "/api/account/accessdenied";
+    options.Cookie.SameSite = SameSiteMode.None; // Ensure cookie can be sent cross-origin
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always; // Ensure cookie is only sent over HTTPS
 });
+
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();

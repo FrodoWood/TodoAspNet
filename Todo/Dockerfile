@@ -22,4 +22,8 @@ RUN dotnet publish "./Todo.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:Us
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+COPY aspnetapp.pfx /https/aspnetapp.pfx
+ENV ASPNETCORE_URLS="https://+;http://+"
+ENV ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
+ENV ASPNETCORE_Kestrel__Certificates__Default__Password=T0d0AspSSL
 ENTRYPOINT ["dotnet", "Todo.dll"]
