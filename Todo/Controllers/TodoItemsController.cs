@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Todo.Database;
 using Todo.Models;
+using Todo.Models.DTOS;
 
 namespace Todo.Controllers
 {
@@ -54,16 +55,18 @@ namespace Todo.Controllers
         // PUT: api/TodoItems/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutTodoItem(long id, TodoItem todoItem)
+        public async Task<IActionResult> PutTodoItem(long id, TodoItemDto todoItemDto)
         {
             var userId = _userManager.GetUserId(User);
+            var todoItem = await _context.TodoItems.FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
-            if (id != todoItem.Id || todoItem.UserId != userId)
+            if (todoItem == null || userId == null)
             {
                 return BadRequest();
             }
 
-            todoItem.UserId = userId;
+            todoItem.Name = todoItemDto.Name;
+            todoItem.IsComplete = todoItemDto.isComplete;
 
             _context.Entry(todoItem).State = EntityState.Modified;
 
@@ -89,12 +92,23 @@ namespace Todo.Controllers
         // POST: api/TodoItems
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        public async Task<ActionResult<TodoItem>> PostTodoItem(TodoItem todoItem)
+        public async Task<ActionResult<TodoItem>> PostTodoItem(TodoItemDto todoItemDto)
         {
             var userId = _userManager.GetUserId(User);
 
-            todoItem.UserId = userId;
-            todoItem.User = await _context.Users.FindAsync(userId);
+            if(userId == null)
+            {
+                return BadRequest();
+            }
+
+            var todoItem = new TodoItem
+            {
+                Name = todoItemDto.Name,
+                IsComplete = todoItemDto.isComplete,
+                UserId = userId,
+                User = await _context.Users.FindAsync(userId)
+            };
+
 
             _context.TodoItems.Add(todoItem);
             await _context.SaveChangesAsync();

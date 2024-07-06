@@ -21,6 +21,19 @@ namespace Todo.Controllers
             _signInManager = signInManager;
         }
 
+        [HttpGet("isLoggedIn")]
+        public IActionResult IsLoggedIn()
+        {
+            if (User.Identity.IsAuthenticated)
+            {
+                return Ok(new { isLoggedIn = true });
+            }
+            else
+            {
+                return Ok(new { isLoggedIn = false });
+            }
+        }
+
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterModel model)
         {
@@ -55,5 +68,26 @@ namespace Todo.Controllers
             await _signInManager.SignOutAsync();
             return Ok();
         }
+
+        [HttpGet("userDetails")]
+        public async Task<IActionResult> GetUserDetails()
+        {
+            var userId = _userManager.GetUserId(User);
+            var user = await _userManager.FindByIdAsync(userId);
+
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            return Ok(new
+            {
+                user.Id,
+                user.UserName,
+                user.Email,
+                // Add any other user properties you want to return
+            });
+        }
+
     }
 }
